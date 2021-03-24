@@ -41,21 +41,35 @@ clear_local_import_dir = ClearDirectoryOperator(
     dag=dag,
 )
 
-# ---------------------------- download and merge files ------------------------------------------
+# ---------------------------- download files, put them into hdfs and merge them --------------------------------------
 
 month_numbers = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
-dummy_operator = DummyOperator()
+create_raw_hdfs_dir = HdfsMkdirFileOperator(
+    task_id='mkdir_hdfs_raw',
+    directory='/user/hadoop/NYCTaxiRAW',
+    hdfs_conn_id='hdfs',
+    dag=dag,
+)
+
+dummy_operator = DummyOperator(task_id='dummy', dag=dag)
 
 for month_number in month_numbers:
     download_taxi_data = HttpDownloadOperator(
-       task_id='download_taxi_01',
+       task_id='download_taxi_' + month_number,
        download_uri='https://s3.amazonaws.com/nyc-tlc/trip+data/yellow_tripdata_2019-' + month_number + '.csv',
-       save_to='/home/airflow/imdb/taxi_2019_' + month_number + '.csv',
+       save_to='/home/airflow/NYCTaxi/taxi_2019_' + month_number + '.csv',
        dag=dag,
     )
 
-    clear_local_import_dir >> download_taxi_data >> dummy_operator
+    hdfs_put_taxi_data = HdfsPutFileOperator(
+        task_id='upload_taxi_'+ month_number + '_to_hdfs',
+        local_file='/home/airflow/NYCTaxi/taxi_2019_' + month_number + '.csv',
+        remote_file='/user/hadoop/NYCTaxiRAW/yellow_tripdata_2019-' + month_number + '.csv',
+        hdfs_conn_id='hdfs',
+        dag=dag,
+    )
 
+    clear_local_import_dir >> download_taxi_data >> create_raw_hdfs_dir >> hdfs_put_taxi_data >> dummy_operator
 
 # ------------------------------ connections ----------------------------------------------------
 
