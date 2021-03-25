@@ -51,7 +51,12 @@ create_raw_hdfs_dir = HdfsMkdirFileOperator(
     dag=dag,
 )
 
-dummy_operator = DummyOperator(task_id='dummy', dag=dag)
+create_final_hdfs_dir = HdfsMkdirFileOperator(
+    task_id='mkdir_hdfs_final',
+    directory='/user/hadoop/NYCTaxiFinal',
+    hdfs_conn_id='hdfs',
+    dag=dag,
+)
 
 for month_number in month_numbers:
     download_taxi_data = HttpDownloadOperator(
@@ -62,15 +67,32 @@ for month_number in month_numbers:
     )
 
     hdfs_put_taxi_data = HdfsPutFileOperator(
-        task_id='upload_taxi_'+ month_number + '_to_hdfs',
+        task_id='upload_taxi_' + month_number + '_to_hdfs',
         local_file='/home/airflow/NYCTaxi/taxi_2019_' + month_number + '.csv',
         remote_file='/user/hadoop/NYCTaxiRAW/yellow_tripdata_2019-' + month_number + '.csv',
         hdfs_conn_id='hdfs',
         dag=dag,
     )
 
-    clear_local_import_dir >> download_taxi_data >> create_raw_hdfs_dir >> hdfs_put_taxi_data >> dummy_operator
+    clear_local_import_dir >> download_taxi_data >> create_raw_hdfs_dir >> hdfs_put_taxi_data >> create_final_hdfs_dir
+
+# ---------------------------------- clean data and move it to hdfs_final ------------------------------------
+
+pyspark_merge_taxi_csvs = SparkSubmitOperator(
+    task_id='pyspark_merge_taxi_CSVs',
+    conn_id='spark',
+    application='/home/airflow/airflow/python/merge_taxi_CSVs.py',
+    total_executor_cores='2',
+    executor_cores='2',
+    executor_memory='2g',
+    num_executors='2',
+    name='merge_taxi_CSVs',
+    verbose=True,
+    dag=dag
+)
+
 
 # ------------------------------ connections ----------------------------------------------------
 
 create_local_import_dir >> clear_local_import_dir
+create_final_hdfs_dir >> pyspark_merge_taxi_csvs
