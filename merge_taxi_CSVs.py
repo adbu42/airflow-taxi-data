@@ -49,5 +49,5 @@ if __name__ == '__main__':
         else:
             NYC_taxi_data = NYC_taxi_data.union(taxi_dataframe)
 
-    NYC_taxi_data.repartition('Month').write.format("parquet").mode("overwrite").partitionBy('Month') \
-        .save('/user/hadoop/NYCTaxiFinal')
+    NYC_taxi_data = NYC_taxi_data.repartition("Year", "Month")
+    NYC_taxi_data.write.partitionBy("Year", "Month").mode("overwrite").csv("/user/hadoop/NYCTaxiFinal/NYCTaxiData.csv", header=True)
