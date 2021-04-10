@@ -24,7 +24,7 @@ if __name__ == '__main__':
     spark = SparkSession(sc)
 
     # Read Taxi Data from HDFS
-    month_numbers = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
+    month_numbers = ['01', '02', '03']
 
     NYC_taxi_data = []
     timeFmt = "yyyy-MM-dd HH:mm:ss"
@@ -49,5 +49,5 @@ if __name__ == '__main__':
         else:
             NYC_taxi_data = NYC_taxi_data.union(taxi_dataframe)
 
-    NYC_taxi_data = NYC_taxi_data.repartition("Year", "Month")
-    NYC_taxi_data.write.partitionBy("Year", "Month").mode("overwrite").csv("/user/hadoop/NYCTaxiFinal/NYCTaxiData.csv", header=True)
+    NYC_taxi_data.repartition('Year', 'Month').write.format("parquet").mode("overwrite").partitionBy('Year', 'Month') \
+        .save('/user/hadoop/NYCTaxiFinal')
