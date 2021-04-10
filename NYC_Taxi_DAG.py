@@ -43,7 +43,7 @@ clear_local_import_dir = ClearDirectoryOperator(
 
 # ---------------------------- download files, put them into hdfs and merge them --------------------------------------
 
-month_numbers = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
+month_numbers = ['01', '02', '03']
 create_raw_hdfs_dir = HdfsMkdirFileOperator(
     task_id='mkdir_hdfs_raw',
     directory='/user/hadoop/NYCTaxiRAW',
@@ -91,8 +91,23 @@ pyspark_merge_taxi_csvs = SparkSubmitOperator(
     dag=dag
 )
 
+# ---------------------------------- generate KPI Excel ------------------------------------
+
+pyspark_calculate_kpis = SparkSubmitOperator(
+    task_id='pyspark_calculate_KPIs',
+    conn_id='spark',
+    application='/home/airflow/airflow/python/calculate_KPIs.py',
+    total_executor_cores='2',
+    executor_cores='2',
+    executor_memory='2g',
+    num_executors='2',
+    name='calculate_KPIs',
+    verbose=True,
+    dag=dag
+)
+
 
 # ------------------------------ connections ----------------------------------------------------
 
 create_local_import_dir >> clear_local_import_dir
-create_final_hdfs_dir >> pyspark_merge_taxi_csvs
+create_final_hdfs_dir >> pyspark_merge_taxi_csvs >> pyspark_calculate_kpis
